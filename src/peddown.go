@@ -92,7 +92,7 @@ func main() {
 
 	// FILTER
 	filterParams := &twitter.StreamFilterParams{
-		Track:         []string{"@yyctransport ALERT 'ped' OR 'pedestrian' -cleared"},
+		Track:         []string{"ALERT ped,ALERT pedestrian"},
 		StallWarnings: twitter.Bool(true),
 	}
 	stream, err := client.Streams.Filter(filterParams)
