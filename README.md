@@ -4,7 +4,7 @@ A simple Twitter bot that will quote tweet any @yyctransport tweet with the word
 "ALERT" and "pedestrian" or "ped" but not cleared. In the tweet it mentions the number and
 tags #yycwalk. It's by no means scientific or accurate as it assumes @yyctransport
 is tweeting every collision and if a tweet doesn't include ped or pedestrian it could be
-mised.
+missed.
 
 For me, it's just a chance to force myself to learn more Go.
 
