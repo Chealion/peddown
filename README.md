@@ -1,4 +1,4 @@
-# Pedestrian Down
+# Pedestrian Down ([@PeddownYYC](https://twitter.com/PeddownYYC))
 
 A simple Twitter bot that will quote tweet any @yyctransport tweet with the words:
 "ALERT" and "pedestrian" or "ped" but not cleared. In the tweet it mentions the number and
