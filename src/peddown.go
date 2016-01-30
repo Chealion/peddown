@@ -45,7 +45,7 @@ func main() {
 	demux.Tweet = func(tweet *twitter.Tweet) {
 		fmt.Println("Pedestrian Down!")
 		fmt.Println(tweet.Text)
-		fmt.Printf("https://twitter.com/yyctransport/status/%s\n", tweet.IDStr)
+		fmt.Printf("https://twitter.com/%s/status/%s\n", tweet.User.ScreenName, tweet.IDStr)
 
 		//If not @yyctransport skip
 		if tweet.User.ID != 1729579022 {
