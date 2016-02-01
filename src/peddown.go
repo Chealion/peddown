@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 
 	"github.com/coreos/pkg/flagutil"
@@ -54,8 +55,8 @@ func main() {
 
 		// Determine suffix from number
 		number := 0
-		body, err := ioutil.ReadFile("counter.txt")
-		numberString := string(body)
+		body, err := ioutil.ReadFile("/home/ubuntu/peddown/counter.txt")
+		numberString := strings.TrimSpace(string(body))
 		if err != nil {
 			fmt.Println("counter file does not exist")
 		} else {
@@ -70,7 +71,7 @@ func main() {
 		//Convert number to byte array and save the number
 		numberString = strconv.Itoa(number)
 		body = []byte(numberString)
-		ioutil.WriteFile("counter.txt", body, 0644)
+		ioutil.WriteFile("/home/ubuntu/peddown/counter.txt", body, 0644)
 
 		suffix := "th"
 		switch number % 10 {
