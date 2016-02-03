@@ -1,4 +1,4 @@
-# Pedestrian Down ([@PeddownYYC](https://twitter.com/PeddownYYC))
+# Pedestrian Down ([@PedDownYYC](https://twitter.com/PedDownYYC))
 
 A simple Twitter bot that will quote tweet any @yyctransport tweet with the words:
 "ALERT" and "pedestrian" or "ped" but not cleared. In the tweet it mentions the number and
@@ -16,17 +16,17 @@ For me, it's just a chance to force myself to learn more Go.
 If you don't already have a Go workspace set up, use the peddown directory.
 Also - this is likely not best practice. I'm rather new at Go.
 
-export GOPATH=/home/ubuntu/peddown
+    export GOPATH=/home/ubuntu/peddown
 
 Install dependencies:
 
-go get github.com/dghubble/go-twitter/twitter
-go get github.com/coreos/pkg/flagutil
-go get github.com/dghubble/oauth1
+    go get github.com/dghubble/go-twitter/twitter
+    go get github.com/coreos/pkg/flagutil
+    go get github.com/dghubble/oauth1
 
 Then:
 
-go build src/peddown.go
+    go build src/peddown.go
 
-Logs if using the Upstart file go to /var/log/upstart/peddown.log
+Logs if using the Upstart file go to `/var/log/upstart/peddown.log`
 
