@@ -83,7 +83,7 @@ func main() {
 			suffix = "rd"
 		}
 
-		tweetContent := fmt.Sprintf("#PedestrianDown #yycwalk %d%s tweeted incident in 2016.\n\nhttps://twitter.com/yyctransport/status/%s\n", number, suffix, tweet.IDStr)
+		tweetContent := fmt.Sprintf("%d%s tweeted pedestrian incident in 2016.\n#yycwalk #yyccc #ableg #visionzero\n@bmasonndp @shoffmanAB\n\nhttps://twitter.com/yyctransport/status/%s\n", number, suffix, tweet.IDStr)
 		tweet, resp, err := client.Statuses.Update(tweetContent, nil)
 		fmt.Println(resp)
 		fmt.Println(err)
