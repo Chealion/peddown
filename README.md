@@ -6,6 +6,9 @@ tags #yycwalk. It's by no means scientific or accurate as it assumes @yyctranspo
 is tweeting every collision and if a tweet doesn't include ped or pedestrian it could be
 missed.
 
+Of note, the tweets that @yyctransport puts out are if the traffic management centre sees
+via a camera or if the incident is reported via 911. [[1]](https://twitter.com/yyctransport/status/697156806250930176)[[2]](https://twitter.com/yyctransport/status/697156999507644416)
+
 For me, it's just a chance to force myself to learn more Go.
 
 ----
