@@ -76,11 +76,17 @@ func main() {
 		suffix := "th"
 		switch number % 10 {
 		case 1:
-			suffix = "st"
+			if (number % 100) != 11 {
+				suffix = "st"
+			}
 		case 2:
-			suffix = "nd"
+			if (number % 100) != 12 {
+				suffix = "nd"
+			}
 		case 3:
-			suffix = "rd"
+			if (number % 100) != 13 {
+				suffix = "rd"
+			}
 		}
 
 		tweetContent := fmt.Sprintf("%d%s tweeted pedestrian incident in 2016.\n#yycwalk #yyccc #ableg #visionzero\n@bmasonndp @shoffmanAB\n\nhttps://twitter.com/yyctransport/status/%s\n", number, suffix, tweet.IDStr)
