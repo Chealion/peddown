@@ -41,3 +41,6 @@ Then:
 
 Logs if using the Upstart file go to `/var/log/upstart/peddown.log`
 
+## LICENSE
+
+Licensed with an [MIT License](http://choosealicense.com/licenses/mit/)
