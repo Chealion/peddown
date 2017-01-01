@@ -57,7 +57,7 @@ Install dependencies:
 
 Then:
 
-    go build src/tweetCollector.go
+    go build src/go-peddown2/tweetCollector/tweetCollector.go
     mv tweetCollector peddown
 
 Logs if using the Upstart file go to `/var/log/upstart/peddown.log`
