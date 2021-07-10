@@ -58,7 +58,7 @@ func main() {
 	demux.Tweet = func(tweet *twitter.Tweet) {
 		// Log that something was found.
 		fmt.Println("Pedestrian Down!")
-		fmt.Println(tweet.Text)
+		fmt.Println(tweet.FullText)
 		fmt.Printf("https://twitter.com/%s/status/%s\n", tweet.User.ScreenName, tweet.IDStr)
 
 		//If not @yyctransport skip
@@ -73,7 +73,7 @@ func main() {
 		* tweetDate <tweet.created_at)
 		* tweetID tweet.IDStr
 		* tweetURL fmt.Printf("https://twitter.com/%s/status/%s\n", tweet.User.ScreenName, tweet.IDStr)
-		* tweetText tweet.Text
+		* tweetText tweet.FullText
 		 */
 
 		tweetURL := fmt.Sprintf("https://twitter.com/yyctransport/status/%s", tweet.IDStr)
@@ -103,7 +103,7 @@ func main() {
 		t := time.Now()
 		year := t.Format("2006")
 
-		tweetContent := fmt.Sprintf("%d%s tweeted pedestrian incident in %s.\n#yycwalk #yyccc #ableg #visionzero\n@bmasonndp @shoffmanAB\n\n%s\n", number, suffix, year, tweetURL)
+		tweetContent := fmt.Sprintf("%d%s tweeted pedestrian incident in %s.\n#yycwalk #yyccc #ableg #visionzero\n@RajanJSaw @shandro\n@lornedach @DShepYEG\n\n%s\n", number, suffix, year, tweetURL)
 		tweet, resp, err := client.Statuses.Update(tweetContent, nil)
 
 		// Log Twitter's response
@@ -119,7 +119,7 @@ func main() {
 		if err != nil {
 			log.Panic(err)
 		}
-		database.Conn.Exec(sqlStmt, tweetTime.Format("2006-01-02 03:04:05"), tweet.IDStr, tweetURL, tweet.Text)
+		database.Conn.Exec(sqlStmt, tweetTime.Format("2006-01-02 03:04:05"), tweet.IDStr, tweetURL, tweetContent)
 		if err != nil {
 			log.Panic(err)
 		}
