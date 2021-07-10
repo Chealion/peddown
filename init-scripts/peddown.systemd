@@ -1,0 +1,14 @@
+[Unit]
+Description=This unit will start after internet connection
+After=network.target
+Wants=network-online.target
+
+[Service]
+Restart=always
+Type=simple
+WorkingDir=/home/ubuntu/peddown
+ExecStart=/home/ubuntu/peddown/peddown
+Environment='TWITTER_CONSUMER_KEY=REPLACE_ME' 'TWITTER_CONSUMER_SECRET=REPLACE_ME' 'TWITTER_ACCESS_TOKEN=REPLACE_ME' 'TWITTER_ACCESS_SECRET=REPLACE_ME'
+
+[Install]
+WantedBy=multi-user.target
