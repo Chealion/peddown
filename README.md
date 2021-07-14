@@ -7,15 +7,6 @@ Unforunately the tweets and data from the OpenData Portal do not coincide in tim
 or share any uniquely identifiable information, but using the intersection one can
 roughly correlate the data between the two public sources.
 
-## tweetCollector.go
-
-This tool like the original version watches @yyctransport for the words: "ALERT",
-"pedestrian" or "ped" and adds it to the database and retweets the tweet.
-
-## peddown.go
-
-TBD
-
 ## History
 
 The initial version of this was a Twitter only bot that would quote any tweet from
@@ -35,28 +26,16 @@ traffic are tweeted. [[1]](https://twitter.com/yyctransport/status/6971568062509
 Even with this limitation, the purpose to show just how frequent incidents occur.
 
 ----
+# Build Instructions
 
-1. Requires Go
-2. Twitter Credentials are environment variables in the Upstart file.
+1. Clone this repository
+2. Grab the dependencies via `go mod download`
+3. `go build`
 
-If you don't already have a Go workspace set up, use the peddown directory.
-Also - this is likely not best practice. I'm rather new at Go.
+# Deployment Instructions
 
-    export GOPATH=/home/ubuntu/peddown
-
-Install dependencies:
-
-    go get -u github.com/dghubble/go-twitter/twitter
-    go get -u github.com/coreos/pkg/flagutil
-    go get -u github.com/dghubble/oauth1
-    go get -u github.com/mattn/go-sqlite3
-
-Then:
-
-    go build src/go-peddown2/tweetCollector/tweetCollector.go
-    mv tweetCollector peddown
-
-Logs if using the Upstart file go to `/var/log/upstart/peddown.log`
+The credentials for Twitter are read from the environment. If using the included systemd service file, add them there.
+If using Docker or something else to run them, please see Docker's instructions on managing environment variables.
 
 ## LICENSE
 
