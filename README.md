@@ -25,10 +25,6 @@ the tweet it mentions the number and tags #yycwalk.
 Thanks to @yyctransport for reporting the incidents, and [@RrrichardZach](https://twitter.com/RrrichardZach/status/690322441403367424)
 for the push to create the bot.
 
-## Future Plans
-
-Currently investigating the new Open Data Portal from the City of Calgary.
-
 ## Caveats
 
 Since the bot is dependant on the @yyctransport team at the [Traffic Management Centre](http://calgary.ca/Transportation/Roads/Pages/Traffic/Traffic-management/Traffic-management.aspx)
