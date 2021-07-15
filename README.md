@@ -30,7 +30,7 @@ Even with this limitation, the purpose to show just how frequent incidents occur
 
 1. Clone this repository
 2. Grab the dependencies via `go mod download`
-3. `go build`
+3. `go build .`
 
 # Deployment Instructions
 

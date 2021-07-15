@@ -99,16 +99,3 @@ func CheckDatabase(db *sql.DB) {
 	}
 
 }
-
-func main() {
-	//Open the database. Will create a new one if it doesn't exist.
-	/*	db, err := sql.Open("sqlite3", "./peddown.db")
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		// Check if database is populated
-		checkDatabase(db)
-
-		defer db.Close() */
-}

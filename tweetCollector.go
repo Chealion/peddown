@@ -2,11 +2,11 @@ package main
 
 /* Heavily based off of https://github.com/dghubble/go-twitter/blob/master/examples/streaming.go */
 
-import "go-peddown2/database"
 import (
 	"database/sql"
 	"flag"
 	"fmt"
+	"github.com/chealion/peddown/database"
 	"log"
 	"os"
 	"os/signal"
