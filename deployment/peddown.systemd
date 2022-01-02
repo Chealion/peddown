@@ -8,7 +8,13 @@ Restart=always
 Type=simple
 WorkingDir=/home/ubuntu/peddown
 ExecStart=/home/ubuntu/peddown/peddown
-Environment='TWITTER_CONSUMER_KEY=REPLACE_ME' 'TWITTER_CONSUMER_SECRET=REPLACE_ME' 'TWITTER_ACCESS_TOKEN=REPLACE_ME' 'TWITTER_ACCESS_SECRET=REPLACE_ME'
+
+Environment='TWITTER_CONSUMER_KEY=REPLACE_ME'
+Environment='TWITTER_CONSUMER_SECRET=REPLACE_ME'
+Environment='TWITTER_ACCESS_TOKEN=REPLACE_ME'
+Environment='TWITTER_ACCESS_SECRET=REPLACE_ME'
+Environment='PEDDOWN_HASHTAGS="#yycwalk #yyccc #ableg #visionzero"'
+Environment='PEDDOWN_MINISTERS="@RajanJSaw @JasonCoppingAB @lornedach @DShepYEG"'
 
 [Install]
 WantedBy=multi-user.target

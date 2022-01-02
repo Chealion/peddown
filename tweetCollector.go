@@ -6,12 +6,15 @@ import (
 	"database/sql"
 	"flag"
 	"fmt"
-	"github.com/chealion/peddown/database"
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
+
+	"github.com/chealion/peddown/database"
 
 	"github.com/coreos/pkg/flagutil"
 	"github.com/dghubble/go-twitter/twitter"
@@ -26,8 +29,16 @@ func main() {
 	accessToken := flags.String("access-token", "", "Twitter Access Token")
 	accessSecret := flags.String("access-secret", "", "Twitter Access Secret")
 	databasePath := flags.String("database", "./peddown.db", "Database Path")
+	fhashtags := flags.String("hashtags", "", "Hashtags to include")
+	fministers := flags.String("ministers", "", "Transportation and Health Critics to include")
+
 	flags.Parse(os.Args[1:])
 	flagutil.SetFlagsFromEnv(flags, "TWITTER")
+	flagutil.SetFlagsFromEnv(flags, "PEDDOWN")
+
+	// Load globals
+	hashtags = *fhashtags
+	ministers = *fministers
 
 	if *consumerKey == "" || *consumerSecret == "" || *accessToken == "" || *accessSecret == "" {
 		log.Fatal("Consumer key/secret and Access token/secret required")
