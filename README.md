@@ -10,8 +10,8 @@ roughly correlate the data between the two public sources.
 ## History
 
 The initial version of this was a Twitter only bot that would quote any tweet from
-@yyctransport with the words: "ALERT" and "pedestrian" or "ped" but not cleared. In 
-the tweet it mentions the number and tags #yycwalk. 
+@yyctransport with the words: "ALERT" and "pedestrian" or "ped" but not cleared. In
+the tweet it mentions the number and tags #yycwalk.
 
 Thanks to @yyctransport for reporting the incidents, and [@RrrichardZach](https://twitter.com/RrrichardZach/status/690322441403367424)
 for the push to create the bot.
@@ -36,6 +36,10 @@ Even with this limitation, the purpose to show just how frequent incidents occur
 
 The credentials for Twitter are read from the environment. If using the included systemd service file, add them there.
 If using Docker or something else to run them, please see Docker's instructions on managing environment variables.
+
+## Updating dependencies
+Run:
+    go get -u && go mod tidy
 
 ## LICENSE
 
