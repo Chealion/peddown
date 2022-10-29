@@ -1,0 +1,18 @@
+# fly.toml file generated for peddown on 2022-10-28T23:49:42-06:00
+
+app = "peddown"
+kill_signal = "SIGTERM"
+kill_timeout = 120
+
+# flyctl volume create peddown_data --region sea --size 1
+[mounts]
+  source = "peddown_data"
+  destination = "/data"
+
+
+# Don't check anything. The process check fails
+[[services]]
+  http_checks = []
+  processes = []
+  script_checks = []
+  tcp_checks = []

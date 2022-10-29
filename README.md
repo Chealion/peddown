@@ -28,14 +28,44 @@ Even with this limitation, the purpose to show just how frequent incidents occur
 ----
 # Build Instructions
 
+## Golang
+
 1. Clone this repository
 2. Grab the dependencies via `go mod download`
 3. `go build .`
+
+## Docker (x86)
+
+    docker build -t peddown .
+    docker run peddown
 
 # Deployment Instructions
 
 The credentials for Twitter are read from the environment. If using the included systemd service file, add them there.
 If using Docker or something else to run them, please see Docker's instructions on managing environment variables.
+
+## fly.io
+
+1. Create the app using `flyctl launch` (Do NOT choose to deploy)
+2. Load the four environment variables in creds.example using `flyctl secrets`
+
+    sed 's/export //g' creds | flyctl secrets import
+
+3. Create the volume if necessary with `flyctl volume create peddown_data --region sea --size 1`
+3. Optionally restore the database with:
+
+   flyctl ssh sftp shell
+   cd /data
+   put peddown.db peddown.sqlite
+
+4. Deploy the applicaton with `flyctl deploy`
+5. Monitor with `flyctl logs`
+
+### Backups
+
+Run a cron elsewhere to grab the file :( Maybe I'll investigate [LiteFS](https://fly.io/blog/introducing-litefs/) in the future but that's a lot more work. Instead we'll set up a cron locally on my laptop to:
+
+    flyctl ssh sftp get /peddown.db test
 
 ## Updating dependencies
 Run:
