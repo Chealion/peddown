@@ -9,4 +9,4 @@ export TWITTER_ACCESS_TOKEN=1234567890abcdefghijklmnopqrstuvwxyz1234567890abcd
 export TWITTER_ACCESS_SECRET=1234567890abcdefghijklmnopqrstuvwxyz123456789
 
 export PEDDOWN_HASHTAGS="#yycwalk #yyccc #ableg #visionzero"
-export PEDDOWN_MINISTERS="@prasadpandayyc @JasonCoppingAB @lornedach @DShepYEG"
+export PEDDOWN_MINISTERS="@DevinDVote @JasonCoppingAB @lornedach @DShepYEG"
