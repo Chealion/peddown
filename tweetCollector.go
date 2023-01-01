@@ -51,7 +51,8 @@ func processTweet(tweet *twitter.Tweet, twitterClient *twitter.Client, databaseC
 	tweetYear := tweetTime.Format("2006")
 
 	// Determine number of tweet in the year
-	query := fmt.Sprintf("select count(*)+1 from tweets where strftime('%%Y', tweetDate) = strftime('%%Y', '%s');", tweetDate)
+	// -7 hours to cover the 7 hours on Dec. 31 when Calgary is not in the same year as UTC
+	query := fmt.Sprintf("select count(*)+1 from tweets where strftime('%%Y', tweetDate, '-7 hours') = strftime('%%Y', '%s', '-7 hours');", tweetDate)
 	err = databaseConn.QueryRow(query).Scan(&number)
 	if err != nil {
 		log.Fatal("Database error", err)
