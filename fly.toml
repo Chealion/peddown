@@ -9,7 +9,6 @@ kill_timeout = 120
   source = "peddown_data"
   destination = "/data"
 
-
 # Don't check anything. The process check fails
 [[services]]
   http_checks = []

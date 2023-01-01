@@ -65,7 +65,16 @@ If using Docker or something else to run them, please see Docker's instructions 
 
 Run a cron elsewhere to grab the file :( Maybe I'll investigate [LiteFS](https://fly.io/blog/introducing-litefs/) in the future but that's a lot more work. Instead we'll set up a cron locally on my laptop to:
 
-    flyctl ssh sftp get /peddown.db test
+    flyctl ssh sftp get /peddown.db peddown.db
+
+## Manual Runs and Pushing Updates
+
+    cd ~/src/peddown.git
+    flyctl ssh sftp get /peddown.db peddown.db
+    source creds
+    ~/src/peddown.git % go run tweetCollector.go -manual https://twitter.com/yyctransport/status/<ID>
+    flyctl ssh console -C 'mv /data/peddown.sqlite /data/peddown.sqlite.bk'
+    echo 'put peddown.db /data/peddown.sqlite' | flyctl ssh sftp shell
 
 ## Updating dependencies
 Run:
