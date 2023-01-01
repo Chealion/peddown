@@ -91,6 +91,17 @@ func processTweet(tweet *twitter.Tweet, twitterClient *twitter.Client, databaseC
 	}
 }
 
+/* https://stackoverflow.com/a/44222606 */
+func trimQuotes(s string) string {
+	if len(s) > 0 && s[0] == '"' {
+		s = s[1:]
+	}
+	if len(s) > 0 && s[len(s)-1] == '"' {
+		s = s[:len(s)-1]
+	}
+	return s
+}
+
 func main() {
 
 	flags := flag.NewFlagSet("user-auth", flag.ExitOnError)
@@ -110,8 +121,9 @@ func main() {
 	flagutil.SetFlagsFromEnv(flags, "PEDDOWN")
 
 	// Load globals
-	hashtags = *fhashtags
-	ministers = *fministers
+
+	hashtags = trimQuotes(*fhashtags)
+	ministers = trimQuotes(*fministers)
 
 	if *consumerKey == "" || *consumerSecret == "" || *accessToken == "" || *accessSecret == "" {
 		log.Fatal("Consumer key/secret and Access token/secret required")
