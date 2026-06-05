@@ -29,16 +29,38 @@ Even with this limitation, the purpose to show just how frequent incidents occur
 * [Communities (kxmf-bzkv)](https://data.calgary.ca/Government/Calgary-Communities/kxmf-bzkv/)
 * Councillors - manually created into a json config blob.
 
-## Technology Stack
+## Development Details
+
+### Technology Stack
 
 * Language: Go
 * Database: Sqlite3
 
 After trying [go-soda](https://github.com/SebastiaanKlippert/go-soda), I opted to move to using [earthboundkid/requests](https://github.com/earthboundkid/requests) instead so I could use the v3 API which provides extra fields.
 
+### Updating dependencies
+Run:
+    go get -u && go mod tidy
+
+## Socrata Notes
+
+### "Failed to fetch incidents: 403 Forbidden"
+- Check your app token is valid
+- Ensure the token is properly exported as an environment variable
+
+### "Failed to fetch incidents: timeout"
+- Check network connectivity
+- The Calgary Open Data portal may be experiencing issues
+- Try again later or fall back to local JSON files
+
+### "unmarshal incidents: invalid character"
+- The API response format may have changed
+- Check the dataset schema at data.calgary.ca
+- Update the struct definitions in `database.go` if needed
+
 ## Deployment Details
 
-Please see [docs](./docs)
+Please see [deploy](./deploy)
 
 ## LICENSE
 

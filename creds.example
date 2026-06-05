@@ -1,0 +1,23 @@
+# Socrata API credentials for data.calgary.ca
+# Create an app token at https://data.calgary.ca/profile/edit/developer_settings
+export SOCRATA_APP_TOKEN=your_app_token_here
+
+# Blue Sky
+export ENABLE_BLUESKY=TRUE
+export BSKY_HANDLE="HANDLE.bsky.social"
+export BSKY_PASSWORD="APP_PASSWORD"
+
+# MASTODON
+export ENABLE_MASTODON=TRUE
+export MASTODON_INSTANCE_URL="https://mastodon.url.here"
+export MASTODON_ACCESS_TOKEN="your_token_here"
+
+# THREADS
+export ENABLE_THREADS=FALSE
+
+# X
+export ENABLE_X=TRUE
+export X_API_KEY="your_api_key"
+export X_API_SECRET="your_api_secret"
+export X_ACCESS_TOKEN="your_access_token"
+export X_ACCESS_TOKEN_SECRET="your_access_token_secret"
