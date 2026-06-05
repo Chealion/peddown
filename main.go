@@ -305,7 +305,7 @@ func processIncidents(db *IncidentDB) error {
 		fmt.Println()
 
 		// Post to Social Media
-		enableBlueSky := os.Getenv("ENABLE_BLUESKY")
+		enableBluesky := os.Getenv("ENABLE_BLUESKY")
 		enableMastodon := os.Getenv("ENABLE_MASTODON")
 		enableThreads := os.Getenv("ENABLE_THREADS")
 		enableX := os.Getenv("ENABLE_X")
@@ -313,12 +313,12 @@ func processIncidents(db *IncidentDB) error {
 		// Concurrency Management
 		g, ctx := errgroup.WithContext(context.Background())
 
-		if enableBlueSky != "" && enableBlueSky == "TRUE" {
+		if enableBluesky != "" && enableBluesky == "TRUE" {
 			g.Go(func() error {
-				// Tweak message for Blue Sky
-				blueSkyMessage := formatMessageForBlueSky(message, councillors, wardNum)
+				// Tweak message for Bluesky
+				blueSkyMessage := formatMessageForBluesky(message, councillors, wardNum)
 
-				if err := postToBlueSky(ctx, blueSkyMessage); err != nil {
+				if err := postToBluesky(ctx, blueSkyMessage); err != nil {
 					return err
 				}
 				return nil
@@ -404,15 +404,15 @@ func formatIncidentMessage(rowNumber int, incidentDate time.Time, incidentInfo, 
 	return sb.String()
 }
 
-// formatMessageForBlueSky replaces councillorName with BlueSky handle if it exists
-func formatMessageForBlueSky(message string, councillors map[string]*Councillor, wardNum string) string {
+// formatMessageForBluesky replaces councillorName with Bluesky handle if it exists
+func formatMessageForBluesky(message string, councillors map[string]*Councillor, wardNum string) string {
 
 	councillor, exists := councillors[wardNum]
-	if !exists || councillor.BlueSkyHandle == "" {
+	if !exists || councillor.BlueskyHandle == "" {
 		return message
 	}
 
-	return message + fmt.Sprintf("\n@%s", councillor.BlueSkyHandle)
+	return message + fmt.Sprintf("\n@%s", councillor.BlueskyHandle)
 }
 
 // formatMessageForMastodon replaces councillorName with Mastodon handle if it exists

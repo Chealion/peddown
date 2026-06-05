@@ -20,26 +20,26 @@ type BskyClient struct {
 	HttpClient *http.Client
 }
 
-type BlueSkyLoginRequest struct {
+type BlueskyLoginRequest struct {
 	Identifier string `json:"identifier"` // Handle or Email
 	Password   string `json:"password"`   // App Password
 }
 
-type BlueSkyLoginResponse struct {
+type BlueskyLoginResponse struct {
 	AccessJwt string `json:"accessJwt"`
 	Did       string `json:"did"`
 	Handle    string `json:"handle"`
 }
 
-// BlueSkyPost is the actual content of the post (Record in BlueSky's API docs)
-type BlueSkyPost struct {
+// BlueskyPost is the actual content of the post (Record in Bluesky's API docs)
+type BlueskyPost struct {
 	Type      string    `json:"$type"` // Must be "app.bsky.feed.post"
 	Text      string    `json:"text"`
 	CreatedAt time.Time `json:"createdAt"`
 	Facet     []Facet   `json:"facets,omitempty"`
 }
 
-// BlueSky Facets - which contain features (mentions or links)
+// Bluesky Facets - which contain features (mentions or links)
 type FacetSpan struct {
 	Start  int
 	End    int
@@ -77,20 +77,20 @@ type Facet struct {
 	Features []any      `json:"features"`
 }
 
-// BlueSkyCreateRecordRequest is the RPC wrapper to save the post to your repo
-type BlueSkyCreateRecordRequest struct {
+// BlueskyCreateRecordRequest is the RPC wrapper to save the post to your repo
+type BlueskyCreateRecordRequest struct {
 	Repo       string      `json:"repo"`       // Your DID
 	Collection string      `json:"collection"` // "app.bsky.feed.post"
-	Record     BlueSkyPost `json:"record"`
+	Record     BlueskyPost `json:"record"`
 }
 
-// BlueSkyAPIError handles error messages from the AT Protocol
-type BlueSkyAPIError struct {
+// BlueskyAPIError handles error messages from the AT Protocol
+type BlueskyAPIError struct {
 	ErrorName string `json:"error"`
 	Message   string `json:"message"`
 }
 
-func NewBlueSkyClient(handle, password string) *BskyClient {
+func NewBlueskyClient(handle, password string) *BskyClient {
 	return &BskyClient{
 		Handle:     handle,
 		Password:   password,
@@ -101,7 +101,7 @@ func NewBlueSkyClient(handle, password string) *BskyClient {
 func (c *BskyClient) Authenticate() error {
 	endpoint := "https://bsky.social/xrpc/com.atproto.server.createSession"
 
-	reqBody := BlueSkyLoginRequest{
+	reqBody := BlueskyLoginRequest{
 		Identifier: c.Handle,
 		Password:   c.Password,
 	}
@@ -117,7 +117,7 @@ func (c *BskyClient) Authenticate() error {
 		return fmt.Errorf("login failed: status %d", resp.StatusCode)
 	}
 
-	var loginResp BlueSkyLoginResponse
+	var loginResp BlueskyLoginResponse
 	if err := json.NewDecoder(resp.Body).Decode(&loginResp); err != nil {
 		return err
 	}
@@ -236,20 +236,20 @@ func parseFacets(message string) ([]Facet, error) {
 	return facets, nil
 }
 
-func (c *BskyClient) CreateBlueSkyPost(message string) error {
+func (c *BskyClient) CreateBlueskyPost(message string) error {
 	endpoint := "https://bsky.social/xrpc/com.atproto.repo.createRecord"
 
 	// Parse out facets to include in the post
 	facets, err := parseFacets(message)
 
-	post := BlueSkyPost{
+	post := BlueskyPost{
 		Type:      "app.bsky.feed.post",
 		Text:      message,
 		Facet:     facets,
 		CreatedAt: time.Now().UTC(),
 	}
 
-	reqBody := BlueSkyCreateRecordRequest{
+	reqBody := BlueskyCreateRecordRequest{
 		Repo:       c.UserDID, // The post belongs to your DID
 		Collection: "app.bsky.feed.post",
 		Record:     post,
@@ -272,7 +272,7 @@ func (c *BskyClient) CreateBlueSkyPost(message string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		var apiErr BlueSkyAPIError
+		var apiErr BlueskyAPIError
 		json.NewDecoder(resp.Body).Decode(&apiErr)
 		return fmt.Errorf("post failed (%s): %s", apiErr.ErrorName, apiErr.Message)
 	}
@@ -280,25 +280,25 @@ func (c *BskyClient) CreateBlueSkyPost(message string) error {
 	return nil
 }
 
-func postToBlueSky(ctx context.Context, message string) error {
+func postToBluesky(ctx context.Context, message string) error {
 	handle := os.Getenv("BSKY_HANDLE")
 	password := os.Getenv("BSKY_PASSWORD")
 
 	if handle == "" || password == "" {
-		return fmt.Errorf("Error: BSKY_HANDLE and BSKY_PASSWORD environment variables are required - did not post to Blue Sky")
+		return fmt.Errorf("Error: BSKY_HANDLE and BSKY_PASSWORD environment variables are required - did not post to Bluesky")
 	}
 
-	client := NewBlueSkyClient(handle, password)
+	client := NewBlueskyClient(handle, password)
 
 	if err := client.Authenticate(); err != nil {
-		return fmt.Errorf("Blue Sky authentication failed: %v", err)
+		return fmt.Errorf("Bluesky authentication failed: %v", err)
 	}
 	//fmt.Printf("Logged in as %s (%s)\n", client.Handle, client.UserDID)
 
-	if err := client.CreateBlueSkyPost(message); err != nil {
+	if err := client.CreateBlueskyPost(message); err != nil {
 		return fmt.Errorf("Failed to post: %v", err)
 	}
 
-	fmt.Println("Posted to Blue Sky")
+	fmt.Println("Posted to Bluesky")
 	return nil
 }

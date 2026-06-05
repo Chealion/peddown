@@ -43,7 +43,7 @@ type Ward struct {
 type Councillor struct {
 	WardNum        string `json:"ward"`
 	Name           string `json:"councillor"`
-	BlueSkyHandle  string `json:"bluesky_handle"`
+	BlueskyHandle  string `json:"bluesky_handle"`
 	MastodonHandle string `json:"mastodon_handle"`
 	ThreadsHandle  string `json:"threads_handle"`
 	XHandle        string `json:"x_handle"`
@@ -345,7 +345,7 @@ func (tdb *IncidentDB) UpsertCouncillor(councillor *Councillor) error {
 			councillor_x = excluded.councillor_x
 	`
 
-	_, err := tdb.db.Exec(query, councillor.WardNum, councillor.Name, councillor.BlueSkyHandle, councillor.MastodonHandle, councillor.ThreadsHandle, councillor.XHandle)
+	_, err := tdb.db.Exec(query, councillor.WardNum, councillor.Name, councillor.BlueskyHandle, councillor.MastodonHandle, councillor.ThreadsHandle, councillor.XHandle)
 	if err != nil {
 		return fmt.Errorf("upsert councillor %s: %w", councillor.WardNum, err)
 	}
@@ -449,7 +449,7 @@ func (tdb *IncidentDB) GetCouncillorInfo() (map[string]*Councillor, error) {
 		err := rows.Scan(
 			&councillor.WardNum,
 			&councillor.Name,
-			&councillor.BlueSkyHandle,
+			&councillor.BlueskyHandle,
 			&councillor.MastodonHandle,
 			&councillor.ThreadsHandle,
 			&councillor.XHandle,

@@ -2,7 +2,7 @@
 # Create an app token at https://data.calgary.ca/profile/edit/developer_settings
 export SOCRATA_APP_TOKEN=your_app_token_here
 
-# Blue Sky
+# BLUESKY
 export ENABLE_BLUESKY=TRUE
 export BSKY_HANDLE="HANDLE.bsky.social"
 export BSKY_PASSWORD="APP_PASSWORD"
