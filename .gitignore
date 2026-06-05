@@ -1,3 +1,5 @@
 creds
-peddown.db
+*.db
 peddown
+*.env
+*.json
