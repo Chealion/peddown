@@ -7,6 +7,10 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
 
 // MastodonClient handles posting to Mastodon
@@ -90,15 +94,26 @@ func (mc *MastodonClient) PostStatus(message string) (*MastodonStatus, error) {
 }
 
 func postToMastodon(ctx context.Context, message string) error {
+	ctx, span := otel.Tracer("social").Start(ctx, "post-to-mastodon")
+	defer span.End()
+
+	span.SetAttributes(attribute.String("social_media.platform", "mastodon"))
+
 	// Create client from environment variables
 	client, err := NewMastodonClient()
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		span.SetAttributes(attribute.String("exception.slug", "mastodon_init_failed"))
 		return fmt.Errorf("Failed to post to Mastodon: %v\n", err)
 	}
 
 	// Post a status
 	status, err := client.PostStatus(message)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		span.SetAttributes(attribute.String("exception.slug", "mastodon_post_failed"))
 		return fmt.Errorf("Failed to post to Mastodon: %v", err)
 	}
 

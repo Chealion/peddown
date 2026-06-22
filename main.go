@@ -13,6 +13,14 @@ import (
 	"golang.org/x/sync/errgroup"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
 
 // mountain is the timezone used for all user-facing dates/times in posts and
@@ -28,7 +36,59 @@ func init() {
 	mountain = loc
 }
 
+func initTracer(ctx context.Context) (*sdktrace.TracerProvider, error) {
+	// If standard OTel env vars are not set, silently skip OTel initialization
+	// to avoid localhost network failures and log spam.
+	if os.Getenv("OTEL_EXPORTER_OTLP_HEADERS") == "" {
+		return nil, nil
+	}
+
+	exporter, err := otlptracehttp.New(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	serviceName := os.Getenv("OTEL_SERVICE_NAME")
+	if serviceName == "" {
+		serviceName = "peddown"
+	}
+
+	res, err := resource.New(ctx,
+		resource.WithAttributes(
+			semconv.ServiceNameKey.String(serviceName),
+		),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	tp := sdktrace.NewTracerProvider(
+		sdktrace.WithBatcher(exporter),
+		sdktrace.WithResource(res),
+	)
+
+	otel.SetTracerProvider(tp)
+	return tp, nil
+}
+
 func main() {
+	ctx := context.Background()
+
+	// Initialize OpenTelemetry
+	tp, err := initTracer(ctx)
+	if err != nil {
+		log.Fatalf("Failed to initialize OpenTelemetry: %v", err)
+	}
+	if tp != nil {
+		defer func() {
+			shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := tp.Shutdown(shutdownCtx); err != nil {
+				log.Printf("Error shutting down TracerProvider: %v", err)
+			}
+		}()
+	}
+
 	// Initialize database
 	db, err := NewIncidentDB("incidents.db")
 	if err != nil {
@@ -37,14 +97,27 @@ func main() {
 	defer db.Close()
 
 	// Create schema
-	if err := db.CreateSchema(); err != nil {
+	if err := db.CreateSchema(ctx); err != nil {
 		log.Fatalf("Failed to create schema: %v", err)
 	}
+
+	// Determine command root span name
+	var cmdName string
+	if len(os.Args) > 1 {
+		cmdName = os.Args[1]
+	} else {
+		cmdName = "help"
+	}
+
+	ctx, rootSpan := otel.Tracer("cli").Start(ctx, "peddown."+cmdName)
+	defer rootSpan.End()
 
 	// Development/debug - import using the json file
 	// Download the file from https://data.calgary.ca/resource/35ra-9556.json
 	if len(os.Args) > 1 && os.Args[1] == "load-local-json" {
-		if err := importLocalIncidents(db, "35ra-9556.json"); err != nil {
+		if err := importLocalIncidents(ctx, db, "35ra-9556.json"); err != nil {
+			rootSpan.RecordError(err)
+			rootSpan.SetStatus(codes.Error, err.Error())
 			log.Fatalf("Failed to import incidents: %v", err)
 		}
 		fmt.Println("Successfully imported incidents from local json file")
@@ -52,7 +125,9 @@ func main() {
 	}
 
 	if len(os.Args) > 1 && os.Args[1] == "load-support-data" {
-		if err := importSupportData(db); err != nil {
+		if err := importSupportData(ctx, db); err != nil {
+			rootSpan.RecordError(err)
+			rootSpan.SetStatus(codes.Error, err.Error())
 			log.Fatalf("Failed to import the support data: %v", err)
 		}
 		fmt.Println("Successfully imported support data")
@@ -61,7 +136,9 @@ func main() {
 
 	// Fetch incidents from data.calgary.ca
 	if len(os.Args) > 1 && os.Args[1] == "load" {
-		if err := importIncidents(db); err != nil {
+		if err := importIncidents(ctx, db); err != nil {
+			rootSpan.RecordError(err)
+			rootSpan.SetStatus(codes.Error, err.Error())
 			log.Fatalf("Failed to fetch incidents: %v", err)
 		}
 		fmt.Println("Successfully fetched incidents")
@@ -70,7 +147,9 @@ func main() {
 
 	// Process unprocessed incidents
 	if len(os.Args) > 1 && os.Args[1] == "process" {
-		if err := processIncidents(db); err != nil {
+		if err := processIncidents(ctx, db); err != nil {
+			rootSpan.RecordError(err)
+			rootSpan.SetStatus(codes.Error, err.Error())
 			log.Fatalf("Failed to process incidents: %v", err)
 		}
 		return
@@ -83,24 +162,35 @@ func main() {
 	fmt.Println("  peddown process             - Process unprocessed pedestrian incidents")
 }
 
-func importLocalIncidents(db *IncidentDB, filename string) error {
+func importLocalIncidents(ctx context.Context, db *IncidentDB, filename string) error {
+	ctx, span := otel.Tracer("cli").Start(ctx, "import-local-incidents")
+	defer span.End()
+
 	// Initialize geo lookup for ward/community calculations
 	fmt.Println("Loading geographic data for lookups...")
 	geoLookup := NewGeoLookup()
-	if err := geoLookup.LoadWards(db); err != nil {
+	if err := geoLookup.LoadWards(ctx, db); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("load wards for geo lookup: %w", err)
 	}
-	if err := geoLookup.LoadCommunities(db); err != nil {
+	if err := geoLookup.LoadCommunities(ctx, db); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("load communities for geo lookup: %w", err)
 	}
 
 	data, err := os.ReadFile(filename)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("read file %s: %w", filename, err)
 	}
 
 	var incidents []Incident
 	if err := json.Unmarshal(data, &incidents); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("unmarshal JSON: %w", err)
 	}
 
@@ -111,7 +201,10 @@ func importLocalIncidents(db *IncidentDB, filename string) error {
 		incidents[i].WardID = geoLookup.FindWard(incidents[i].Latitude, incidents[i].Longitude)
 		incidents[i].CommunityID = geoLookup.FindCommunity(incidents[i].Latitude, incidents[i].Longitude)
 
-		if err := db.UpsertIncident(&incidents[i]); err != nil {
+		// This does upsert everytime - but with only 20 happening on an hourly run I've chosen to not optimize and introduce complexity.
+		if err := db.UpsertIncident(ctx, &incidents[i]); err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
 			return fmt.Errorf("upsert incident %d: %w", i, err)
 		}
 
@@ -124,19 +217,28 @@ func importLocalIncidents(db *IncidentDB, filename string) error {
 }
 
 // Import incidents from data.calgary.ca
-func importIncidents(db *IncidentDB) error {
+func importIncidents(ctx context.Context, db *IncidentDB) error {
+	ctx, span := otel.Tracer("cli").Start(ctx, "import-incidents")
+	defer span.End()
+
 	client, err := NewSocrataClient()
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("create socrata client: %w", err)
 	}
 
 	// Initialize geo lookup for ward/community calculations
 	fmt.Println("Loading geographic data for lookups...")
 	geoLookup := NewGeoLookup()
-	if err := geoLookup.LoadWards(db); err != nil {
+	if err := geoLookup.LoadWards(ctx, db); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("load wards for geo lookup: %w", err)
 	}
-	if err := geoLookup.LoadCommunities(db); err != nil {
+	if err := geoLookup.LoadCommunities(ctx, db); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("load communities for geo lookup: %w", err)
 	}
 
@@ -145,8 +247,10 @@ func importIncidents(db *IncidentDB) error {
 	// Fetch last 20 incidents
 	// Set as variable for changing for massive imports
 	incidentCount := 20
-	incidents, err := client.FetchIncidents(incidentCount)
+	incidents, err := client.FetchIncidents(ctx, incidentCount)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("fetch incidents: %w", err)
 	}
 
@@ -158,7 +262,9 @@ func importIncidents(db *IncidentDB) error {
 		incidents[i].WardID = geoLookup.FindWard(incidents[i].Latitude, incidents[i].Longitude)
 		incidents[i].CommunityID = geoLookup.FindCommunity(incidents[i].Latitude, incidents[i].Longitude)
 
-		if err := db.UpsertIncident(&incidents[i]); err != nil {
+		if err := db.UpsertIncident(ctx, &incidents[i]); err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
 			return fmt.Errorf("upsert incident %d: %w", i, err)
 		}
 
@@ -168,8 +274,10 @@ func importIncidents(db *IncidentDB) error {
 	}
 
 	// Report how many new incidents were added
-	incidentCount, err = db.GetUnprocessedIncidentCount()
+	incidentCount, err = db.GetUnprocessedIncidentCount(ctx)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("failed to get unprocessed count: %w", err)
 	} else {
 		if incidentCount > 0 {
@@ -186,37 +294,50 @@ func importIncidents(db *IncidentDB) error {
 	return nil
 }
 
-func importSupportData(db *IncidentDB) error {
+func importSupportData(ctx context.Context, db *IncidentDB) error {
+	ctx, span := otel.Tracer("cli").Start(ctx, "import-support-data")
+	defer span.End()
+
 	// Create Socrata client
 	client, err := NewSocrataClient()
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("create socrata client: %w", err)
 	}
 
 	// Fetch wards
 	fmt.Println("Fetching wards from data.calgary.ca...")
-	wards, err := client.FetchWards()
+	wards, err := client.FetchWards(ctx)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("fetch wards: %w", err)
 	}
 
 	fmt.Printf("Importing %d wards to database...\n", len(wards))
 	for i, ward := range wards {
-		if err := db.UpsertWard(&ward); err != nil {
+		if err := db.UpsertWard(ctx, &ward); err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
 			return fmt.Errorf("upsert ward %d: %w", i, err)
 		}
 	}
 
 	// Fetch communities
 	fmt.Println("Fetching communities from data.calgary.ca...")
-	communities, err := client.FetchCommunities()
+	communities, err := client.FetchCommunities(ctx)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("fetch communities: %w", err)
 	}
 
 	fmt.Printf("Importing %d communities to database...\n", len(communities))
 	for i, community := range communities {
-		if err := db.UpsertCommunity(&community); err != nil {
+		if err := db.UpsertCommunity(ctx, &community); err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
 			return fmt.Errorf("upsert community %d: %w", i, err)
 		}
 
@@ -229,17 +350,23 @@ func importSupportData(db *IncidentDB) error {
 	fmt.Println("Loading councillors from local file...")
 	data, err := os.ReadFile("councillors.json")
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("read councillors.json: %w", err)
 	}
 
 	var councillors []Councillor
 	if err := json.Unmarshal(data, &councillors); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("unmarshal councillors: %w", err)
 	}
 
 	fmt.Printf("Importing %d councillors...\n", len(councillors))
 	for i, councillor := range councillors {
-		if err := db.UpsertCouncillor(&councillor); err != nil {
+		if err := db.UpsertCouncillor(ctx, &councillor); err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
 			return fmt.Errorf("upsert councillor %d: %w", i, err)
 		}
 
@@ -251,9 +378,14 @@ func importSupportData(db *IncidentDB) error {
 	return nil
 }
 
-func processIncidents(db *IncidentDB) error {
-	incidents, err := db.GetUnprocessedIncidents()
+func processIncidents(ctx context.Context, db *IncidentDB) error {
+	ctx, span := otel.Tracer("cli").Start(ctx, "process-incidents")
+	defer span.End()
+
+	incidents, err := db.GetUnprocessedIncidents(ctx)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("get unprocessed incidents: %w", err)
 	}
 
@@ -262,14 +394,19 @@ func processIncidents(db *IncidentDB) error {
 		return nil
 	}
 
-	councillors, err := db.GetCouncillorInfo()
+	councillors, err := db.GetCouncillorInfo(ctx)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("get councillor info failure: %w", err)
 	}
 
 	fmt.Printf("Processing %d unprocessed incident(s)...\n\n", len(incidents))
 
 	for _, incident := range incidents {
+		// Process each incident in a separate child span
+		incidentCtx, incidentSpan := otel.Tracer("cli").Start(ctx, "process-incident")
+
 		// Parse the start_dt to get the year
 		id := incident["id"].(string)
 		startDt := incident["start_dt"].(string) // UTC, no offset suffix; time.Parse defaults to UTC.
@@ -279,19 +416,35 @@ func processIncidents(db *IncidentDB) error {
 		councillorName := incident["councillor_name"].(string)
 		rowNumber := incident["row_number"].(string)
 
+		// Set rich business attributes on the individual incident span
+		incidentSpan.SetAttributes(
+			attribute.String("incident.id", id),
+			attribute.String("incident.community_name", communityName),
+			attribute.String("incident.ward_id", wardNum),
+			attribute.String("incident.councillor_name", councillorName),
+			attribute.String("incident.row_number", rowNumber),
+		)
+
 		// Parse the date
 		incidentDate, err := time.Parse("2006-01-02T15:04:05.000", startDt)
 		if err != nil {
 			log.Printf("Warning: Failed to parse date for incident %s: %v", id, err)
+			incidentSpan.RecordError(err)
 		}
 		year := incidentDate.In(mountain).Year()
 
 		// String to int
 		row, err := strconv.Atoi(rowNumber)
+		if err != nil {
+			incidentSpan.RecordError(err)
+		}
 
 		// Find which number this was for the year and ward
-		wardCount, err := db.CountPedestrianIncidentsByWardAndYear(id, wardNum, year)
+		wardCount, err := db.CountPedestrianIncidentsByWardAndYear(incidentCtx, id, wardNum, year)
 		if err != nil {
+			incidentSpan.RecordError(err)
+			incidentSpan.SetStatus(codes.Error, err.Error())
+			incidentSpan.End()
 			return fmt.Errorf("count incidents for ward %s: %w", wardNum, err)
 		}
 
@@ -310,15 +463,15 @@ func processIncidents(db *IncidentDB) error {
 		enableThreads := os.Getenv("ENABLE_THREADS")
 		enableX := os.Getenv("ENABLE_X")
 
-		// Concurrency Management
-		g, ctx := errgroup.WithContext(context.Background())
+		// Concurrency Management - derive group context from our active incident span context!
+		g, groupCtx := errgroup.WithContext(incidentCtx)
 
 		if enableBluesky != "" && enableBluesky == "TRUE" {
 			g.Go(func() error {
 				// Tweak message for Bluesky
 				blueSkyMessage := formatMessageForBluesky(message, councillors, wardNum)
 
-				if err := postToBluesky(ctx, blueSkyMessage); err != nil {
+				if err := postToBluesky(groupCtx, blueSkyMessage); err != nil {
 					return err
 				}
 				return nil
@@ -330,7 +483,7 @@ func processIncidents(db *IncidentDB) error {
 				// Tweak message for Mastodon
 				mastodonMessage := formatMessageForMastodon(message, councillors, wardNum)
 
-				if err := postToMastodon(ctx, mastodonMessage); err != nil {
+				if err := postToMastodon(groupCtx, mastodonMessage); err != nil {
 					return err
 				}
 				return nil
@@ -342,7 +495,7 @@ func processIncidents(db *IncidentDB) error {
 				// Tweak message for Threads
 				threadsMessage := formatMessageForThreads(message, councillors, wardNum)
 
-				if err := postToThreads(ctx, threadsMessage); err != nil {
+				if err := postToThreads(groupCtx, threadsMessage); err != nil {
 					return err
 				}
 				return nil
@@ -356,7 +509,7 @@ func processIncidents(db *IncidentDB) error {
 				// Tweak message for X
 				//xMessage := formatMessageForX(message, councillors, wardNum)
 
-				if err := postToX(ctx, xMessage); err != nil {
+				if err := postToX(groupCtx, xMessage); err != nil {
 					return err
 				}
 				return nil
@@ -364,13 +517,20 @@ func processIncidents(db *IncidentDB) error {
 		}
 
 		// Mark as processed
-		if err := db.MarkAsProcessed(id); err != nil {
+		if err := db.MarkAsProcessed(incidentCtx, id); err != nil {
+			incidentSpan.RecordError(err)
+			incidentSpan.SetStatus(codes.Error, err.Error())
+			incidentSpan.End()
 			return fmt.Errorf("mark incident as processed: %w", err)
 		}
 
 		if err := g.Wait(); err != nil {
 			fmt.Printf("Error: %s\n", err)
+			incidentSpan.RecordError(err)
+			incidentSpan.SetStatus(codes.Error, err.Error())
 		}
+
+		incidentSpan.End()
 	}
 
 	fmt.Printf("Successfully processed %d incident(s).\n", len(incidents))

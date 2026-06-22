@@ -1,11 +1,14 @@
 package main
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"time"
 
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
 	_ "modernc.org/sqlite"
 )
 
@@ -72,7 +75,10 @@ func NewIncidentDB(dbPath string) (*IncidentDB, error) {
 	return &IncidentDB{db: db}, nil
 }
 
-func (tdb *IncidentDB) CreateSchema() error {
+func (tdb *IncidentDB) CreateSchema(ctx context.Context) error {
+	ctx, span := otel.Tracer("database").Start(ctx, "db.create-schema")
+	defer span.End()
+
 	schema := `
 		CREATE TABLE IF NOT EXISTS traffic_incidents (
 			id TEXT PRIMARY KEY,
@@ -114,7 +120,9 @@ func (tdb *IncidentDB) CreateSchema() error {
 		);
 	`
 
-	if _, err := tdb.db.Exec(schema); err != nil {
+	if _, err := tdb.db.ExecContext(ctx, schema); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("create schema: %w", err)
 	}
 
@@ -122,9 +130,15 @@ func (tdb *IncidentDB) CreateSchema() error {
 }
 
 // UpsertIncident inserts a new incident or updates an existing one
-func (tdb *IncidentDB) UpsertIncident(incident *Incident) error {
+func (tdb *IncidentDB) UpsertIncident(ctx context.Context, incident *Incident) error {
+	ctx, span := otel.Tracer("database").Start(ctx, "db.upsert-incident")
+	defer span.End()
+
 	if incident.ID == "" {
-		return fmt.Errorf("incident ID cannot be empty")
+		err := fmt.Errorf("incident ID cannot be empty")
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
 	}
 
 	query := `
@@ -145,7 +159,7 @@ func (tdb *IncidentDB) UpsertIncident(incident *Incident) error {
 			updated_at = datetime('now')
 	`
 
-	_, err := tdb.db.Exec(query,
+	_, err := tdb.db.ExecContext(ctx, query,
 		incident.ID,
 		incident.IncidentInfo,
 		incident.Description,
@@ -158,13 +172,18 @@ func (tdb *IncidentDB) UpsertIncident(incident *Incident) error {
 		incident.WardID,
 	)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("upsert incident %s: %w", incident.ID, err)
 	}
 
 	return nil
 }
 
-func (tdb *IncidentDB) GetUnprocessedIncidentCount() (int, error) {
+func (tdb *IncidentDB) GetUnprocessedIncidentCount(ctx context.Context) (int, error) {
+	ctx, span := otel.Tracer("database").Start(ctx, "db.get-unprocessed-incident-count")
+	defer span.End()
+
 	query := `
 		SELECT count(*)
 		FROM traffic_incidents
@@ -172,15 +191,20 @@ func (tdb *IncidentDB) GetUnprocessedIncidentCount() (int, error) {
 		`
 
 	var count int
-	err := tdb.db.QueryRow(query).Scan(&count)
+	err := tdb.db.QueryRowContext(ctx, query).Scan(&count)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return 0, fmt.Errorf("count pedestrian incidents by ward: %w", err)
 	}
 
 	return count, nil
 }
 
-func (tdb *IncidentDB) GetUnprocessedIncidents() ([]map[string]interface{}, error) {
+func (tdb *IncidentDB) GetUnprocessedIncidents(ctx context.Context) ([]map[string]interface{}, error) {
+	ctx, span := otel.Tracer("database").Start(ctx, "db.get-unprocessed-incidents")
+	defer span.End()
+
 	// Double query in order to set a row number and avoid a 6 hour pain point around New Year's...
 	query := `
 		SELECT
@@ -214,8 +238,10 @@ func (tdb *IncidentDB) GetUnprocessedIncidents() ([]map[string]interface{}, erro
 		WHERE processed = 0
 	`
 
-	rows, err := tdb.db.Query(query)
+	rows, err := tdb.db.QueryContext(ctx, query)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return nil, fmt.Errorf("query unprocessed enriched: %w", err)
 	}
 	defer rows.Close()
@@ -228,6 +254,8 @@ func (tdb *IncidentDB) GetUnprocessedIncidents() ([]map[string]interface{}, erro
 		err := rows.Scan(&id, &startDt, &incidentInfo, &description, &quadrant,
 			&rowNumber, &communityName, &wardNum, &councillorName)
 		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
 			return nil, fmt.Errorf("scan enriched incident row: %w", err)
 		}
 
@@ -247,6 +275,8 @@ func (tdb *IncidentDB) GetUnprocessedIncidents() ([]map[string]interface{}, erro
 	}
 
 	if err := rows.Err(); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return nil, fmt.Errorf("iterate rows: %w", err)
 	}
 
@@ -255,7 +285,10 @@ func (tdb *IncidentDB) GetUnprocessedIncidents() ([]map[string]interface{}, erro
 
 // CountPedestrianIncidentsByWardAndYear counts pedestrian incidents in a ward for a given year
 // We can use ID to filter since we have it queried before
-func (tdb *IncidentDB) CountPedestrianIncidentsByWardAndYear(id string, wardID string, year int) (int, error) {
+func (tdb *IncidentDB) CountPedestrianIncidentsByWardAndYear(ctx context.Context, id string, wardID string, year int) (int, error) {
+	ctx, span := otel.Tracer("database").Start(ctx, "db.count-pedestrian-incidents-by-ward-and-year")
+	defer span.End()
+
 	if wardID == "" {
 		return 0, nil
 	}
@@ -269,8 +302,10 @@ func (tdb *IncidentDB) CountPedestrianIncidentsByWardAndYear(id string, wardID s
 	`
 
 	var count int
-	err := tdb.db.QueryRow(query, wardID, fmt.Sprintf("%d", year), id).Scan(&count)
+	err := tdb.db.QueryRowContext(ctx, query, wardID, fmt.Sprintf("%d", year)).Scan(&count)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return 0, fmt.Errorf("count pedestrian incidents by ward: %w", err)
 	}
 
@@ -278,9 +313,15 @@ func (tdb *IncidentDB) CountPedestrianIncidentsByWardAndYear(id string, wardID s
 }
 
 // MarkAsProcessed marks an incident as processed
-func (tdb *IncidentDB) MarkAsProcessed(incidentID string) error {
+func (tdb *IncidentDB) MarkAsProcessed(ctx context.Context, incidentID string) error {
+	ctx, span := otel.Tracer("database").Start(ctx, "db.mark-as-processed")
+	defer span.End()
+
 	if incidentID == "" {
-		return fmt.Errorf("incident ID cannot be empty")
+		err := fmt.Errorf("incident ID cannot be empty")
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
 	}
 
 	query := `
@@ -289,27 +330,40 @@ func (tdb *IncidentDB) MarkAsProcessed(incidentID string) error {
 		WHERE id = ?
 	`
 
-	result, err := tdb.db.Exec(query, incidentID)
+	result, err := tdb.db.ExecContext(ctx, query, incidentID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("mark incident %s as processed: %w", incidentID, err)
 	}
 
 	rows, err := result.RowsAffected()
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("check rows affected: %w", err)
 	}
 
 	if rows == 0 {
-		return fmt.Errorf("incident %s not found", incidentID)
+		err := fmt.Errorf("incident %s not found", incidentID)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
 	}
 
 	return nil
 }
 
 // UpsertCommunity inserts a new community or updates an existing one
-func (tdb *IncidentDB) UpsertCommunity(community *Community) error {
+func (tdb *IncidentDB) UpsertCommunity(ctx context.Context, community *Community) error {
+	ctx, span := otel.Tracer("database").Start(ctx, "db.upsert-community")
+	defer span.End()
+
 	if community.CommCode == "" {
-		return fmt.Errorf("community comm_code cannot be empty")
+		err := fmt.Errorf("community comm_code cannot be empty")
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
 	}
 
 	query := `
@@ -320,8 +374,10 @@ func (tdb *IncidentDB) UpsertCommunity(community *Community) error {
 			multipolygon = excluded.multipolygon
 	`
 
-	_, err := tdb.db.Exec(query, community.CommCode, community.Name, string(community.Multipolygon))
+	_, err := tdb.db.ExecContext(ctx, query, community.CommCode, community.Name, string(community.Multipolygon))
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("upsert community %s: %w", community.CommCode, err)
 	}
 
@@ -329,9 +385,15 @@ func (tdb *IncidentDB) UpsertCommunity(community *Community) error {
 }
 
 // UpsertCouncillor inserts a new ward or updates an existing one
-func (tdb *IncidentDB) UpsertCouncillor(councillor *Councillor) error {
+func (tdb *IncidentDB) UpsertCouncillor(ctx context.Context, councillor *Councillor) error {
+	ctx, span := otel.Tracer("database").Start(ctx, "db.upsert-councillor")
+	defer span.End()
+
 	if councillor.WardNum == "" {
-		return fmt.Errorf("councillor's ward id cannot be empty")
+		err := fmt.Errorf("councillor's ward id cannot be empty")
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
 	}
 
 	query := `
@@ -345,8 +407,10 @@ func (tdb *IncidentDB) UpsertCouncillor(councillor *Councillor) error {
 			councillor_x = excluded.councillor_x
 	`
 
-	_, err := tdb.db.Exec(query, councillor.WardNum, councillor.Name, councillor.BlueskyHandle, councillor.MastodonHandle, councillor.ThreadsHandle, councillor.XHandle)
+	_, err := tdb.db.ExecContext(ctx, query, councillor.WardNum, councillor.Name, councillor.BlueskyHandle, councillor.MastodonHandle, councillor.ThreadsHandle, councillor.XHandle)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("upsert councillor %s: %w", councillor.WardNum, err)
 	}
 
@@ -354,9 +418,15 @@ func (tdb *IncidentDB) UpsertCouncillor(councillor *Councillor) error {
 }
 
 // UpsertWard inserts a new ward or updates an existing one
-func (tdb *IncidentDB) UpsertWard(ward *Ward) error {
+func (tdb *IncidentDB) UpsertWard(ctx context.Context, ward *Ward) error {
+	ctx, span := otel.Tracer("database").Start(ctx, "db.upsert-ward")
+	defer span.End()
+
 	if ward.WardNum == "" {
-		return fmt.Errorf("ward number cannot be empty")
+		err := fmt.Errorf("ward number cannot be empty")
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		return err
 	}
 
 	query := `
@@ -366,8 +436,10 @@ func (tdb *IncidentDB) UpsertWard(ward *Ward) error {
 			multipolygon = excluded.multipolygon
 	`
 
-	_, err := tdb.db.Exec(query, ward.WardNum, string(ward.Multipolygon))
+	_, err := tdb.db.ExecContext(ctx, query, ward.WardNum, string(ward.Multipolygon))
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("upsert ward %s: %w", ward.WardNum, err)
 	}
 
@@ -375,11 +447,16 @@ func (tdb *IncidentDB) UpsertWard(ward *Ward) error {
 }
 
 // GetWards retrieves all wards from the database
-func (tdb *IncidentDB) GetWards() ([]Ward, error) {
+func (tdb *IncidentDB) GetWards(ctx context.Context) ([]Ward, error) {
+	ctx, span := otel.Tracer("database").Start(ctx, "db.get-wards")
+	defer span.End()
+
 	query := `SELECT ward_num, multipolygon FROM wards`
 
-	rows, err := tdb.db.Query(query)
+	rows, err := tdb.db.QueryContext(ctx, query)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return nil, fmt.Errorf("get wards: %w", err)
 	}
 	defer rows.Close()
@@ -389,6 +466,8 @@ func (tdb *IncidentDB) GetWards() ([]Ward, error) {
 		var ward Ward
 		var multipolygonStr string
 		if err := rows.Scan(&ward.WardNum, &multipolygonStr); err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
 			return nil, fmt.Errorf("scan ward row: %w", err)
 		}
 		ward.Multipolygon = json.RawMessage(multipolygonStr)
@@ -396,6 +475,8 @@ func (tdb *IncidentDB) GetWards() ([]Ward, error) {
 	}
 
 	if err := rows.Err(); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return nil, fmt.Errorf("iterate ward rows: %w", err)
 	}
 
@@ -403,11 +484,16 @@ func (tdb *IncidentDB) GetWards() ([]Ward, error) {
 }
 
 // GetCommunities retrieves all communities from the database
-func (tdb *IncidentDB) GetCommunities() ([]Community, error) {
+func (tdb *IncidentDB) GetCommunities(ctx context.Context) ([]Community, error) {
+	ctx, span := otel.Tracer("database").Start(ctx, "db.get-communities")
+	defer span.End()
+
 	query := `SELECT comm_code, name, multipolygon FROM communities`
 
-	rows, err := tdb.db.Query(query)
+	rows, err := tdb.db.QueryContext(ctx, query)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return nil, fmt.Errorf("get communities: %w", err)
 	}
 	defer rows.Close()
@@ -417,6 +503,8 @@ func (tdb *IncidentDB) GetCommunities() ([]Community, error) {
 		var community Community
 		var multipolygonStr string
 		if err := rows.Scan(&community.CommCode, &community.Name, &multipolygonStr); err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
 			return nil, fmt.Errorf("scan community row: %w", err)
 		}
 		community.Multipolygon = json.RawMessage(multipolygonStr)
@@ -424,6 +512,8 @@ func (tdb *IncidentDB) GetCommunities() ([]Community, error) {
 	}
 
 	if err := rows.Err(); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return nil, fmt.Errorf("iterate community rows: %w", err)
 	}
 
@@ -431,14 +521,19 @@ func (tdb *IncidentDB) GetCommunities() ([]Community, error) {
 }
 
 // GetCouncillorInfo retrieves all councillors and returns them as a map keyed by ward number
-func (tdb *IncidentDB) GetCouncillorInfo() (map[string]*Councillor, error) {
+func (tdb *IncidentDB) GetCouncillorInfo(ctx context.Context) (map[string]*Councillor, error) {
+	ctx, span := otel.Tracer("database").Start(ctx, "db.get-councillor-info")
+	defer span.End()
+
 	query := `
 		SELECT ward_num, councillor_name, councillor_bluesky, councillor_mastodon, councillor_threads, councillor_x
 		FROM councillors
 	`
 
-	rows, err := tdb.db.Query(query)
+	rows, err := tdb.db.QueryContext(ctx, query)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return nil, fmt.Errorf("get councillor info: %w", err)
 	}
 	defer rows.Close()
@@ -455,6 +550,8 @@ func (tdb *IncidentDB) GetCouncillorInfo() (map[string]*Councillor, error) {
 			&councillor.XHandle,
 		)
 		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
 			return nil, fmt.Errorf("scan councillor row: %w", err)
 		}
 
@@ -462,6 +559,8 @@ func (tdb *IncidentDB) GetCouncillorInfo() (map[string]*Councillor, error) {
 	}
 
 	if err := rows.Err(); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return nil, fmt.Errorf("iterate councillor rows: %w", err)
 	}
 

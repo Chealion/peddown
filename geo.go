@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
 	"github.com/paulmach/orb"
 	"github.com/paulmach/orb/geojson"
 	"github.com/paulmach/orb/planar"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
 )
 
 // GeoLookup holds parsed polygons for ward and community lookups
@@ -24,15 +27,22 @@ func NewGeoLookup() *GeoLookup {
 }
 
 // LoadWards loads ward polygons from database
-func (gl *GeoLookup) LoadWards(db *IncidentDB) error {
-	wards, err := db.GetWards()
+func (gl *GeoLookup) LoadWards(ctx context.Context, db *IncidentDB) error {
+	ctx, span := otel.Tracer("geo").Start(ctx, "geo.load-wards")
+	defer span.End()
+
+	wards, err := db.GetWards(ctx)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("get wards from db: %w", err)
 	}
 
 	for _, ward := range wards {
 		mp, err := parseMultiPolygon(ward.Multipolygon)
 		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
 			return fmt.Errorf("parse ward %s multipolygon: %w", ward.WardNum, err)
 		}
 		gl.wards[ward.WardNum] = mp
@@ -42,15 +52,22 @@ func (gl *GeoLookup) LoadWards(db *IncidentDB) error {
 }
 
 // LoadCommunities loads community polygons from database
-func (gl *GeoLookup) LoadCommunities(db *IncidentDB) error {
-	communities, err := db.GetCommunities()
+func (gl *GeoLookup) LoadCommunities(ctx context.Context, db *IncidentDB) error {
+	ctx, span := otel.Tracer("geo").Start(ctx, "geo.load-communities")
+	defer span.End()
+
+	communities, err := db.GetCommunities(ctx)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
 		return fmt.Errorf("get communities from db: %w", err)
 	}
 
 	for _, community := range communities {
 		mp, err := parseMultiPolygon(community.Multipolygon)
 		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, err.Error())
 			return fmt.Errorf("parse community %s multipolygon: %w", community.CommCode, err)
 		}
 		gl.communities[community.CommCode] = mp

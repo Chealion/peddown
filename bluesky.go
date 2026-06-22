@@ -10,6 +10,10 @@ import (
 	"os"
 	"regexp"
 	"time"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
 )
 
 type BskyClient struct {
@@ -281,21 +285,35 @@ func (c *BskyClient) CreateBlueskyPost(message string) error {
 }
 
 func postToBluesky(ctx context.Context, message string) error {
+	ctx, span := otel.Tracer("social").Start(ctx, "post-to-bluesky")
+	defer span.End()
+
+	span.SetAttributes(attribute.String("social_media.platform", "bluesky"))
+
 	handle := os.Getenv("BSKY_HANDLE")
 	password := os.Getenv("BSKY_PASSWORD")
 
 	if handle == "" || password == "" {
-		return fmt.Errorf("Error: BSKY_HANDLE and BSKY_PASSWORD environment variables are required - did not post to Bluesky")
+		err := fmt.Errorf("Error: BSKY_HANDLE and BSKY_PASSWORD environment variables are required - did not post to Bluesky")
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		span.SetAttributes(attribute.String("exception.slug", "bluesky_env_missing"))
+		return err
 	}
 
 	client := NewBlueskyClient(handle, password)
 
 	if err := client.Authenticate(); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		span.SetAttributes(attribute.String("exception.slug", "bluesky_auth_failed"))
 		return fmt.Errorf("Bluesky authentication failed: %v", err)
 	}
-	//fmt.Printf("Logged in as %s (%s)\n", client.Handle, client.UserDID)
 
 	if err := client.CreateBlueskyPost(message); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+		span.SetAttributes(attribute.String("exception.slug", "bluesky_post_failed"))
 		return fmt.Errorf("Failed to post: %v", err)
 	}
 
