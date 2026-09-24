@@ -111,7 +111,7 @@ func (sc *SocrataClient) FetchIncidents(ctx context.Context, limit int) ([]Incid
 	span.SetAttributes(attribute.Int("socrata.limit", limit))
 
 	query := SocrataQuery{
-		Query: "SELECT * WHERE description LIKE '%pedestrian%' ORDER BY start_dt desc",
+		Query: "SELECT * WHERE description LIKE '%pedestrian%' ORDER BY start_dt_utc desc",
 		Page: SocrataPage{
 			PageNumber: 1,
 			PageSize:   limit,

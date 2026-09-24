@@ -413,9 +413,9 @@ func processIncidents(ctx context.Context, db *IncidentDB) error {
 		// Process each incident in a separate child span
 		incidentCtx, incidentSpan := otel.Tracer("cli").Start(ctx, "process-incident")
 
-		// Parse the start_dt to get the year
+		// Parse start_dt_utc to get the year.
 		id := incident["id"].(string)
-		startDt := incident["start_dt"].(string) // UTC, no offset suffix; time.Parse defaults to UTC.
+		startDt := incident["start_dt"].(string)
 		incidentInfo := incident["incident_info"].(string)
 		communityName := incident["community_name"].(string)
 		wardNum := incident["ward_num"].(string)

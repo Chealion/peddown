@@ -14,14 +14,12 @@ import (
 )
 
 // Traffic Incidents - https://data.calgary.ca/Transportation-Transit/Traffic-Incidents/35ra-9556/
-// *Start* Date and times are stored in UTC.
-// *Modified* date and times are MT.
 type Incident struct {
 	ID           string  `json:"id"`
 	IncidentInfo string  `json:"incident_info"`
 	Description  string  `json:"description"`
-	StartDt      string  `json:"start_dt"`
-	ModifiedDt   string  `json:"modified_dt"`
+	StartDt      string  `json:"start_dt_utc"`
+	ModifiedDt   string  `json:"modified_dt_utc"`
 	Quadrant     string  `json:"quadrant"`
 	Longitude    float64 `json:"longitude,string"`
 	Latitude     float64 `json:"latitude,string"`
