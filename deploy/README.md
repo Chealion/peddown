@@ -1,5 +1,7 @@
 This is deployed on exe.dev - using lazy, manually repeatable instructions using an [exe.dev](https://exe.dev) VM.
 
+## Initial Deployment
+
 1. Create the VM:
 
     ```ssh exe.dev new --name=peddown```
@@ -54,3 +56,22 @@ This is deployed on exe.dev - using lazy, manually repeatable instructions using
     systemctl list-timers peddown.timer
     journalctl -u peddown.service
     ```
+
+## Upgrades/Updates
+
+1. Build
+```bash
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o peddown .
+```
+
+2. Deploy
+(Atomic swap in case we have terrible timing)
+```bash
+scp peddown peddown.exe.xyz:/app/peddown.new
+ssh peddown.exe.xyz "mv /app/peddown.new /app/peddown && chmod +x /app/peddown"
+```
+
+3. Verify
+```bash
+ssh peddown.exe.xyz "sudo systemctl start peddown.service && journalctl -u peddown.service -n 30 --no-pager"
+```

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	_ "modernc.org/sqlite"
 )
@@ -242,6 +243,7 @@ func (tdb *IncidentDB) GetUnprocessedIncidents(ctx context.Context) ([]map[strin
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
+		span.SetAttributes(attribute.String("exception.slug", "db_get_unprocessed_failed"))
 		return nil, fmt.Errorf("query unprocessed enriched: %w", err)
 	}
 	defer rows.Close()
@@ -256,6 +258,7 @@ func (tdb *IncidentDB) GetUnprocessedIncidents(ctx context.Context) ([]map[strin
 		if err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
+			span.SetAttributes(attribute.String("exception.slug", "db_get_unprocessed_scan_failed"))
 			return nil, fmt.Errorf("scan enriched incident row: %w", err)
 		}
 

@@ -44,6 +44,9 @@ Run:
 
 ## Socrata Notes
 
+### "Failed to fetch incidents: unexpected error 400"
+- Check your query - the table layout on data.calgary.ca may have changed
+
 ### "Failed to fetch incidents: 403 Forbidden"
 - Check your app token is valid
 - Ensure the token is properly exported as an environment variable

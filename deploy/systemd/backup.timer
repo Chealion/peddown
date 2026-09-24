@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily peddown backup (randomized within the day)
+
+[Timer]
+OnCalendar=daily
+RandomizedDelaySec=23h
+Persistent=true
+Unit=backup.service
+
+[Install]
+WantedBy=timers.target

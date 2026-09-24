@@ -1,0 +1,7 @@
+[Unit]
+Description=Run peddown backup script
+
+[Service]
+Type=oneshot
+WorkingDirectory=/app
+ExecStart=/app/backup.sh

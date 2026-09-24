@@ -1,0 +1,13 @@
+[Unit]
+Description=Run peddown load + process
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=exedev
+Group=exedev
+WorkingDirectory=/app
+EnvironmentFile=/etc/peddown/peddown.env
+ExecStart=/app/peddown load
+ExecStart=/app/peddown process

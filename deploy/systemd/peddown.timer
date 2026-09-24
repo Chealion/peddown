@@ -1,0 +1,10 @@
+[Unit]
+Description=Run peddown hourly at :07
+
+[Timer]
+OnCalendar=*-*-* *:07:00
+Persistent=true
+Unit=peddown.service
+
+[Install]
+WantedBy=timers.target

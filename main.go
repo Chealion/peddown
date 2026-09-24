@@ -73,11 +73,16 @@ func initTracer(ctx context.Context) (*sdktrace.TracerProvider, error) {
 
 func main() {
 	ctx := context.Background()
+	if err := run(ctx); err != nil {
+		log.Fatal(err)
+	}
+}
 
+func run(ctx context.Context) error {
 	// Initialize OpenTelemetry
 	tp, err := initTracer(ctx)
 	if err != nil {
-		log.Fatalf("Failed to initialize OpenTelemetry: %v", err)
+		return fmt.Errorf("failed to initialize OpenTelemetry: %w", err)
 	}
 	if tp != nil {
 		defer func() {
@@ -92,13 +97,13 @@ func main() {
 	// Initialize database
 	db, err := NewIncidentDB("incidents.db")
 	if err != nil {
-		log.Fatalf("Failed to open database: %v", err)
+		return fmt.Errorf("failed to open database: %w", err)
 	}
 	defer db.Close()
 
 	// Create schema
 	if err := db.CreateSchema(ctx); err != nil {
-		log.Fatalf("Failed to create schema: %v", err)
+		return fmt.Errorf("failed to create schema: %w", err)
 	}
 
 	// Determine command root span name
@@ -118,20 +123,20 @@ func main() {
 		if err := importLocalIncidents(ctx, db, "35ra-9556.json"); err != nil {
 			rootSpan.RecordError(err)
 			rootSpan.SetStatus(codes.Error, err.Error())
-			log.Fatalf("Failed to import incidents: %v", err)
+			return fmt.Errorf("failed to import incidents: %w", err)
 		}
 		fmt.Println("Successfully imported incidents from local json file")
-		return
+		return nil
 	}
 
 	if len(os.Args) > 1 && os.Args[1] == "load-support-data" {
 		if err := importSupportData(ctx, db); err != nil {
 			rootSpan.RecordError(err)
 			rootSpan.SetStatus(codes.Error, err.Error())
-			log.Fatalf("Failed to import the support data: %v", err)
+			return fmt.Errorf("failed to import the support data: %w", err)
 		}
 		fmt.Println("Successfully imported support data")
-		return
+		return nil
 	}
 
 	// Fetch incidents from data.calgary.ca
@@ -139,10 +144,10 @@ func main() {
 		if err := importIncidents(ctx, db); err != nil {
 			rootSpan.RecordError(err)
 			rootSpan.SetStatus(codes.Error, err.Error())
-			log.Fatalf("Failed to fetch incidents: %v", err)
+			return fmt.Errorf("failed to fetch incidents: %w", err)
 		}
 		fmt.Println("Successfully fetched incidents")
-		return
+		return nil
 	}
 
 	// Process unprocessed incidents
@@ -150,9 +155,9 @@ func main() {
 		if err := processIncidents(ctx, db); err != nil {
 			rootSpan.RecordError(err)
 			rootSpan.SetStatus(codes.Error, err.Error())
-			log.Fatalf("Failed to process incidents: %v", err)
+			return fmt.Errorf("failed to process incidents: %w", err)
 		}
-		return
+		return nil
 	}
 
 	fmt.Println("Usage:")
@@ -160,6 +165,7 @@ func main() {
 	fmt.Println("  peddown load-support-data   - Import support data from data.calgary.ca")
 	fmt.Println("  peddown load-local-json     - Import incidents from 35ra-9556.json")
 	fmt.Println("  peddown process             - Process unprocessed pedestrian incidents")
+	return nil
 }
 
 func importLocalIncidents(ctx context.Context, db *IncidentDB, filename string) error {
