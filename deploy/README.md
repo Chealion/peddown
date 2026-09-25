@@ -8,7 +8,7 @@ This is deployed on exe.dev - using lazy, manually repeatable instructions using
 
 2. Build for amd64:
 
-    ```GOOS=linux GOARCH=amd64 go build .```
+    ```CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build .```
 
 3. Manually copy a variety of files to your VM (optionally be sad this isn't automated):
 

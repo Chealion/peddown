@@ -42,6 +42,12 @@ After trying [go-soda](https://github.com/SebastiaanKlippert/go-soda), I opted t
 Run:
     go get -u && go mod tidy
 
+## Usage
+
+```
+go run . load
+```
+
 ## Socrata Notes
 
 ### "Failed to fetch incidents: unexpected error 400"
