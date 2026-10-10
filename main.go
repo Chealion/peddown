@@ -482,6 +482,8 @@ func processIncidents(ctx context.Context, db *IncidentDB) error {
 				}
 				return nil
 			})
+		} else {
+			log.Printf("skipping bluesky - disabled")
 		}
 
 		if enableMastodon != "" && enableMastodon == "TRUE" {
@@ -494,6 +496,8 @@ func processIncidents(ctx context.Context, db *IncidentDB) error {
 				}
 				return nil
 			})
+		} else {
+			log.Printf("skipping mastodon - disabled")
 		}
 
 		if enableThreads != "" && enableThreads == "TRUE" {
@@ -506,6 +510,8 @@ func processIncidents(ctx context.Context, db *IncidentDB) error {
 				}
 				return nil
 			})
+		} else {
+			log.Printf("skipping threads - disabled")
 		}
 
 		if enableX != "" && enableX == "TRUE" {
@@ -520,6 +526,8 @@ func processIncidents(ctx context.Context, db *IncidentDB) error {
 				}
 				return nil
 			})
+		} else {
+			log.Printf("skipping x - disabled")
 		}
 
 		// Mark as processed
