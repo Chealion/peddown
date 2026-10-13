@@ -75,3 +75,50 @@ ssh peddown.exe.xyz "mv /app/peddown.new /app/peddown && chmod +x /app/peddown"
 ```bash
 ssh peddown.exe.xyz "sudo systemctl start peddown.service && journalctl -u peddown.service -n 30 --no-pager"
 ```
+
+## Threads credential bootstrapping
+
+Because Threads behaves so differently than the other services, Threads needs a file on disk to store the long-lived (60 day) access token. As such the bootstrapping of this has manual steps.
+
+1. Create a Meta app with the Threads API use case with the `threads_basic` and `threads_content_publish` permissions.
+2. Add callbacks to all 3 callback URLs (https://localhost:8000/callback is just fine)
+3. Add peddownyyc as a tester to the application and accept the invite
+4. Either use the Generate Access Token button on the testing page or get the initial access token by visiting:
+    ```
+    https://threads.net/oauth/authorize?client_id=<THREADS_APP_ID>&redirect_uri=https://localhost:8000/callback&scope=threads_basic,threads_content_publish&response_type=code
+    ```
+Since we don't have an app living to receive it grab everything after `code=` and before the last `#` in the URL - that's our access token.
+5. Then get the short lived (1 hour) token to interact with the API using curl:
+    ```
+    curl -X POST "https://graph.threads.net/oauth/access_token" \
+      -F client_id="THREADS_APP_ID" \
+      -F client_secret="THREADS_APP_SECRET" \
+      -F grant_type="authorization_code" \
+      -F redirect_uri="https://localhost:8000/callback" \
+      -F code="ACCESS_TOKEN_FROM_STEP_4"
+    ```
+  This returns a JSON object with a user id and the token. The user id should be in your `creds`.
+6. We can then exchange the new token for the longer-lived token:
+    ```
+    curl -s "https://graph.threads.net/access_token?grant_type=th_exchange_token&client_secret=$THREADS_APP_SECRET&access_token=$SHORT_LIVED_TOKEN"
+    ```
+7. That token should be saved in `/app/threads_token`. (Owned by `exedev` and `0600`)
+
+### Refresh
+
+The token is valid for 60 days and is refreshed automatically whenever the bot
+posts, once the file is at least 24 hours old (Meta will not refresh a token
+sooner than that). A successful refresh rewrites the file in place and extends it
+by another 60 days.
+
+To refresh on demand (for example before a known expiry):
+
+```bash
+source /etc/peddown/peddown.env
+/app/peddown threads-refresh
+```
+
+If a token is rejected, the bot logs `Threads rejected the access token` and sets
+the span attribute `exception.slug=threads_token_expired`. That means the token
+expired or was revoked (for example the service was down for more than 60 days).
+Repeat the steps above to populate a new token.

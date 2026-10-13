@@ -15,7 +15,7 @@ export MASTODON_ACCESS_TOKEN="your_token_here"
 # THREADS
 export ENABLE_THREADS=TRUE
 export THREADS_USER_ID="your_threads_user_id"
-export THREADS_TOKEN_FILE="/etc/peddown/threads_token"
+export THREADS_TOKEN_FILE="/app/threads_token"
 
 # X
 export ENABLE_X=TRUE
