@@ -13,7 +13,9 @@ export MASTODON_INSTANCE_URL="https://mastodon.url.here"
 export MASTODON_ACCESS_TOKEN="your_token_here"
 
 # THREADS
-export ENABLE_THREADS=FALSE
+export ENABLE_THREADS=TRUE
+export THREADS_USER_ID="your_threads_user_id"
+export THREADS_TOKEN_FILE="/etc/peddown/threads_token"
 
 # X
 export ENABLE_X=TRUE
@@ -26,4 +28,3 @@ export X_ACCESS_TOKEN_SECRET="your_access_token_secret"
 # export OTEL_SERVICE_NAME="peddown"
 # export OTEL_EXPORTER_OTLP_ENDPOINT="https://api.honeycomb.io"
 # export OTEL_EXPORTER_OTLP_HEADERS="x-honeycomb-team=your_honeycomb_api_key"
-

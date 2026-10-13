@@ -1,4 +1,5 @@
 creds
+threads_token
 *.db
 peddown
 *.env

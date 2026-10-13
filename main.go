@@ -160,11 +160,24 @@ func run(ctx context.Context) error {
 		return nil
 	}
 
+	// Refresh the token in THREADS_TOKEN_FILE (extends it by 60 days).
+	if len(os.Args) > 1 && os.Args[1] == "threads-refresh" {
+		expiresIn, err := refreshThreadsToken(ctx)
+		if err != nil {
+			rootSpan.RecordError(err)
+			rootSpan.SetStatus(codes.Error, err.Error())
+			return err
+		}
+		fmt.Printf("Refreshed Threads token, expires in %d days\n", expiresIn/(24*60*60))
+		return nil
+	}
+
 	fmt.Println("Usage:")
 	fmt.Println("  peddown load                - Import pedestrian incidents from data.calgary.ca")
 	fmt.Println("  peddown load-support-data   - Import support data from data.calgary.ca")
 	fmt.Println("  peddown load-local-json     - Import incidents from 35ra-9556.json")
 	fmt.Println("  peddown process             - Process unprocessed pedestrian incidents")
+	fmt.Println("  peddown threads-refresh     - Manually refresh the Threads token in THREADS_TOKEN_FILE - should be automatic")
 	return nil
 }
 
